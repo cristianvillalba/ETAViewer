@@ -25,8 +25,10 @@ import com.simsilica.lemur.Command;
 import com.simsilica.lemur.Container;
 import com.simsilica.lemur.GuiGlobals;
 import com.simsilica.lemur.Label;
+import com.simsilica.lemur.ListBox;
 import com.simsilica.lemur.TextField;
 import com.simsilica.lemur.style.BaseStyles;
+import java.util.ArrayList;
 
 /**
  * Main Class
@@ -42,8 +44,18 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
     private TextField realField;
     private TextField imgField;
     private TextField imgOffset;
-    private float scale = 10f;
+    private TextField anglevector;
+    private ListBox valueList;
+    private float scale = 100f;
     private boolean isdragging = false;
+    private ArrayList<Vector3f> temppoints = new ArrayList<Vector3f>();
+    
+    private boolean GUI = false;
+    private boolean automove = true;
+    private float prevangle = 0;
+    private boolean startcounting = false;
+    private boolean goingdown = true;
+    private int indexangle = 1;
     
     public static Main instance;
     
@@ -78,7 +90,9 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
 
         InitPoint();
         
-        InitGUI();
+        if (GUI){
+            InitGUI();
+        }
     }
     
     private void RegisterInput()
@@ -101,11 +115,15 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         myMainWindow = new Container();
         realField = new TextField("R:");
         imgField = new TextField("I:");
+        anglevector = new TextField("Angle:");
         imgOffset = new TextField("Offset Img:");
         
         realField.setText("" + realvalue);
         imgField.setText("" + imvalue);
         imgOffset.setText("" + imoffset);
+        anglevector.setText("" + imoffset);
+        
+        valueList = new ListBox();
         
         guiNode.attachChild(myMainWindow);
 
@@ -114,6 +132,8 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         myMainWindow.addChild(new Label("ETA Viewer"));
         myMainWindow.addChild(realField);
         myMainWindow.addChild(imgField);
+         myMainWindow.addChild(anglevector);
+        myMainWindow.addChild(valueList);
         Button clickMe = myMainWindow.addChild(new Button("Calc ETA..."));
         clickMe.addClickCommands(new Command<Button>() {
                 @Override
@@ -135,13 +155,15 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
     public void CalcETA(boolean focus)
     {
         try{
-            realvalue = Float.parseFloat(realField.getText());
-            imvalue = Float.parseFloat(imgField.getText());
-            point.setLocalTranslation(realvalue * scale, (imvalue - imoffset)*scale, 0f);
+            if (GUI){
+                realvalue = Float.parseFloat(realField.getText());
+                imvalue = Float.parseFloat(imgField.getText());
+                point.setLocalTranslation(realvalue * scale, (imvalue - imoffset)*scale, 0f);
+            }
             
             ConstructETA();
             
-            if (focus){
+            if (GUI && focus){
                 GuiGlobals.getInstance().releaseFocus(myMainWindow);
             }
         }
@@ -179,6 +201,9 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
     
     private void ConstructETA()
     {
+        temppoints.clear();
+        temppoints.add(new Vector3f());
+        
         etanode.detachAllChildren();
         
         Complex etasum = new Complex(0f, 0f);
@@ -190,7 +215,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         float previousreal = 0f;
         float previousimg = 0f;
         
-        for (int i = 1; i < 100; i++)
+        for (int i = 1; i < 150; i++)
         {
             Complex divisor = new Complex(i, 0f);
             
@@ -207,7 +232,11 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             
             previousreal =  (float)etasum.getReal();
             previousimg = (float)etasum.getImaginary();
+            
+            temppoints.add(new Vector3f(previousreal, previousimg, 0.0f));
         }
+        
+        //etanode.attachChild(GenerateLine(realvalue, imvalue - imoffset, previousreal, previousimg, 666)); //remove red line
         
     }
     
@@ -233,7 +262,14 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         
         Geometry linexpos = new Geometry("etaline" + index, linexp);
         Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat1.setColor("Color", ColorRGBA.Green);
+        
+        if (index != 666){
+            mat1.setColor("Color", ColorRGBA.Green);
+        }
+        else
+        {
+            mat1.setColor("Color", ColorRGBA.Red);
+        }
         linexpos.setMaterial(mat1);
         
         return linexpos;
@@ -252,21 +288,21 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         
         Geometry linexneg = new Geometry("xaxisneg", linexn);
         Material mat2 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat2.setColor("Color", ColorRGBA.Gray);
+        mat2.setColor("Color", ColorRGBA.White);
         linexneg.setMaterial(mat2);
         
         Line lineyp = new Line(Vector3f.ZERO, Vector3f.UNIT_Y.mult(500));
         
         Geometry lineypos = new Geometry("yaxispos", lineyp);
         Material mat3 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat3.setColor("Color", ColorRGBA.Red);
+        mat3.setColor("Color", ColorRGBA.White);
         lineypos.setMaterial(mat3);
         
         Line lineyn = new Line(Vector3f.ZERO, Vector3f.UNIT_Y.mult(-500));
         
         Geometry lineyneg = new Geometry("yaxisneg", lineyn);
         Material mat4 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat4.setColor("Color", ColorRGBA.Orange);
+        mat4.setColor("Color", ColorRGBA.White);
         lineyneg.setMaterial(mat4);
         
         Line linecritic = new Line(new Vector3f(0.5f*scale, -500, 0), new Vector3f(0.5f*scale, 500, 0));
@@ -300,14 +336,17 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         realaxis.attachChild(zero01g);
         realaxis.attachChild(zero02g);
         
+        Material gray = mat2.clone();
+        gray.setColor("Color", ColorRGBA.Gray);
+        
         Geometry linexpos2 = linexpos.clone();
-        linexpos2.setMaterial(mat2);
+        linexpos2.setMaterial(gray);
         Geometry linexneg2 = linexneg.clone();
-        linexneg2.setMaterial(mat2);
+        linexneg2.setMaterial(gray);
         Geometry lineypos2 = lineypos.clone();
-        lineypos2.setMaterial(mat2);
+        lineypos2.setMaterial(gray);
         Geometry lineyneg2 = lineyneg.clone();
-        lineyneg2.setMaterial(mat2);
+        lineyneg2.setMaterial(gray);
         
         Node realaxis2 = new Node();
         
@@ -372,14 +411,85 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         
         point.setLocalTranslation(newpos.x, newpos.y, 0f);
     }
+    
+    private void MoveAuto(float tpf)
+    {
+        realvalue = 0.5f;
+        imvalue = imvalue + 0.5f*tpf;
+        
+        if (GUI){
+            realField.setText("" + realvalue);
+            imgField.setText("" + imvalue);
+        }
+        
+        CalcETA(false);
+    }
+    
+    private void CheckAngles()
+    {
+        if (temppoints.size() < 3)
+        {
+            return;
+        }
+        
+        Vector3f previouspoint = temppoints.get(indexangle - 1).clone();
+        Vector3f actualpoint = temppoints.get(indexangle).clone();
+        Vector3f nextpoint = temppoints.get(indexangle + 1).clone();
+        
+        Vector3f ppreviouspoint = previouspoint.subtract(actualpoint);
+        Vector3f pnextpoint = nextpoint.subtract(actualpoint);
+        
+        ppreviouspoint.normalizeLocal();
+        pnextpoint.normalizeLocal();
+        
+        float angle = ppreviouspoint.angleBetween(pnextpoint);
+        
+        if (FastMath.abs((float) (angle - Math.PI)) < 0.01f && !goingdown)
+        {
+            goingdown = true;
+        }
+        
+        if (prevangle < angle && prevangle < 0.1f && angle < 0.1f && goingdown)
+        {
+            if (!startcounting){
+                time = 0;
+                startcounting = true;
+                goingdown = false;
+                System.out.println("Calc angle distance of point: " + indexangle);
+            }
+            else
+            {
+                if (GUI){
+                    valueList.getModel().add("Angle time:" + Float.toString(time));
+                }
+                else
+                {
+                    System.out.println("Angle time: " + Float.toString(time));
+                }
+                
+                startcounting = false;
+                
+                if (indexangle < temppoints.size() - 1)
+                {
+                    indexangle++;
+                }
+            }
+            
+        }
+        
+        //anglevector.setText(Float.toString(angle));
+        prevangle = angle;
+    }
 
     @Override
     public void simpleUpdate(float tpf) {
         time += tpf;
+         
+        if (automove){
+            MoveAuto(tpf);
+            CheckAngles(); 
+        }
         
-        //realvalue = 10 * FastMath.sin(time);
-        //imvalue = 10 * FastMath.cos(time);
-        //point.setLocalTranslation(realvalue, imvalue, 0f);
     }
 
     @Override
