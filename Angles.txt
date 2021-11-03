@@ -1,0 +1,26 @@
+Calc angle distance of point: 1
+Angle time: 18.090582
+Calc angle distance of point: 2
+Angle time: 30.939487
+Calc angle distance of point: 3
+Angle time: 43.49505
+Calc angle distance of point: 4
+Angle time: 56.36756
+Calc angle distance of point: 5
+Angle time: 68.91882
+Calc angle distance of point: 6
+Angle time: 163.03911 ---ERROR
+Calc angle distance of point: 7
+
+Difference between angles
+12.848905
+12.555563
+12.87251
+12.55126
+
+		mult	sum
+18.090582		1.710253822	12.848905
+30.939487		1.405810316	12.555563
+43.49505		1.295953448	12.87251
+56.36756		1.222668145	12.55126
+68.91882		0	-68.91882

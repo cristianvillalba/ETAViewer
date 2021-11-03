@@ -2,9 +2,11 @@ package eta;
 
 import com.jme3.app.SimpleApplication;
 import com.jme3.collision.CollisionResults;
+import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.AnalogListener;
+import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseAxisTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.material.Material;
@@ -28,10 +30,46 @@ import com.simsilica.lemur.Label;
 import com.simsilica.lemur.ListBox;
 import com.simsilica.lemur.TextField;
 import com.simsilica.lemur.style.BaseStyles;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 /**
  * Main Class
+ * 
+ * e to the PI i = (1 + piI/n) n ....esto es un nro complejo...ver video de mathologer para entender por que es una espiral
+ * 
+ * de la forma modular de los nros complejos se puede entender que es un nro real y una rotacion en el unit circle
+ * ver 3blue1brown
+ * 
+ * 
+ * --- angulos entre secuencias:
+ * Calc angle distance of point: 1
+Angle time: 18.090582
+Calc angle distance of point: 2
+Angle time: 30.939487
+Calc angle distance of point: 3
+Angle time: 43.49505
+Calc angle distance of point: 4
+Angle time: 56.36756
+Calc angle distance of point: 5
+Angle time: 68.91882
+Calc angle distance of point: 6
+Angle time: 163.03911 ---ERROR
+Calc angle distance of point: 7
+
+Difference between angles
+12.848905
+12.555563
+12.87251
+12.55126
+
+		mult	sum
+18.090582		1.710253822	12.848905
+30.939487		1.405810316	12.555563
+43.49505		1.295953448	12.87251
+56.36756		1.222668145	12.55126
+68.91882		0	-68.91882
+ * 
  */
 public class Main extends SimpleApplication implements ActionListener, AnalogListener{
     private float realvalue = 1.0f;
@@ -40,22 +78,31 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
     private Geometry point;
     private Node etanode;
     private float time = 0f;
+    private float steptime = 0f;
+    private int stepcounter = 1;
+    private int maxsteps = 150;
     private Container myMainWindow;
+    private Container myStepWindow;
     private TextField realField;
     private TextField imgField;
     private TextField imgOffset;
     private TextField anglevector;
+    private TextField naturalField;
+    private TextField exponentialField;
     private ListBox valueList;
     private float scale = 100f;
     private boolean isdragging = false;
     private ArrayList<Vector3f> temppoints = new ArrayList<Vector3f>();
     
-    private boolean GUI = false;
-    private boolean automove = true;
+    private boolean GUI = true;
+    private boolean automove = false;
+    private boolean stepbystep = false;
     private float prevangle = 0;
     private boolean startcounting = false;
     private boolean goingdown = true;
     private int indexangle = 1;
+    
+    private int nodeindex = 0;//index to move each index
     
     public static Main instance;
     
@@ -73,7 +120,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         rootNode.attachChild(etanode);
         
         this.flyCam.setMoveSpeed(100f);
-        this.cam.setLocation(new Vector3f(50f, 25f, 130f));
+        this.cam.setLocation(new Vector3f(50f, 25f, 500f));
         this.cam.lookAt(new Vector3f(25f,0f,0f), Vector3f.UNIT_Y);
         
         // Initialize the globals access so that the default
@@ -102,17 +149,31 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         inputManager.addMapping("Left", new MouseAxisTrigger(MouseInput.AXIS_X, false));
         inputManager.addMapping("Up", new MouseAxisTrigger(MouseInput.AXIS_Y, true));
         inputManager.addMapping("Down", new MouseAxisTrigger(MouseInput.AXIS_Y, false));
+        inputManager.addMapping("Enter", new KeyTrigger(KeyInput.KEY_RETURN));
+        
+        inputManager.addMapping("arrowup", new KeyTrigger(KeyInput.KEY_U));
+        inputManager.addMapping("arrowdown", new KeyTrigger(KeyInput.KEY_J));
+        inputManager.addMapping("arrowleft", new KeyTrigger(KeyInput.KEY_H));
+        inputManager.addMapping("arrowright", new KeyTrigger(KeyInput.KEY_D));
+        
 
         inputManager.addListener(this, "Drag");
         inputManager.addListener(this, "Right");
         inputManager.addListener(this, "Left");
         inputManager.addListener(this, "Up");
         inputManager.addListener(this, "Down");
+        inputManager.addListener(this, "Enter");
+        
+        inputManager.addListener(this, "arrowup");
+        inputManager.addListener(this, "arrowdown");
+        inputManager.addListener(this, "arrowleft");
+        inputManager.addListener(this, "arrowright");
     }
     
     private void InitGUI(){
         
         myMainWindow = new Container();
+        myStepWindow = new Container();
         realField = new TextField("R:");
         imgField = new TextField("I:");
         anglevector = new TextField("Angle:");
@@ -132,13 +193,13 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         myMainWindow.addChild(new Label("ETA Viewer"));
         myMainWindow.addChild(realField);
         myMainWindow.addChild(imgField);
-         myMainWindow.addChild(anglevector);
+        myMainWindow.addChild(anglevector);
         myMainWindow.addChild(valueList);
         Button clickMe = myMainWindow.addChild(new Button("Calc ETA..."));
         clickMe.addClickCommands(new Command<Button>() {
                 @Override
                 public void execute( Button source ) {
-                    instance.CalcETA(true);
+                    instance.CalcETA(true, maxsteps);
                 }
             });
        
@@ -150,9 +211,34 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
                     instance.Offset();
                 }
             });
+        
+        Button clickMe02 = myMainWindow.addChild(new Button("Automove..."));
+        clickMe02.addClickCommands(new Command<Button>() {
+                @Override
+                public void execute( Button source ) {
+                    if (automove)
+                    {
+                        automove = false;
+                    }
+                    else
+                    {
+                        automove = true;
+                    }
+                }
+            });
+        
+        
+        naturalField = new TextField("      2       ");
+        exponentialField = new TextField("         (2 + 3i)");
+        myStepWindow.setLocalTranslation(cam.getWidth() - 150, cam.getHeight()- 10, 0);
+        myStepWindow.addChild(new Label("                  1            "));
+        myStepWindow.addChild(new Label("         --------------------  "));
+        myStepWindow.addChild(exponentialField);
+        myStepWindow.addChild(naturalField);
+      
     }
     
-    public void CalcETA(boolean focus)
+    public void CalcETA(boolean focus, int limit)
     {
         try{
             if (GUI){
@@ -161,7 +247,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
                 point.setLocalTranslation(realvalue * scale, (imvalue - imoffset)*scale, 0f);
             }
             
-            ConstructETA();
+            ConstructETA(limit);
             
             if (GUI && focus){
                 GuiGlobals.getInstance().releaseFocus(myMainWindow);
@@ -199,7 +285,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         
     }
     
-    private void ConstructETA()
+    private void ConstructETA(int limit)
     {
         temppoints.clear();
         temppoints.add(new Vector3f());
@@ -215,7 +301,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         float previousreal = 0f;
         float previousimg = 0f;
         
-        for (int i = 1; i < 150; i++)
+        for (int i = 1; i < limit; i++)
         {
             Complex divisor = new Complex(i, 0f);
             
@@ -407,22 +493,27 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         realField.setText("" + realvalue);
         imgField.setText("" + imvalue);
         
-        CalcETA(false);
+        CalcETA(false, maxsteps);
         
         point.setLocalTranslation(newpos.x, newpos.y, 0f);
     }
     
-    private void MoveAuto(float tpf)
+    private void MoveAuto(float tpf, boolean stbst)
     {
-        realvalue = 0.5f;
-        imvalue = imvalue + 0.5f*tpf;
-        
-        if (GUI){
-            realField.setText("" + realvalue);
-            imgField.setText("" + imvalue);
+        if (stbst){
+            CalcETA(false, stepcounter);
         }
+        else{
+            realvalue = 0.5f;
+            imvalue = imvalue + 0.5f*tpf;
+
+            if (GUI){
+                realField.setText("" + realvalue);
+                imgField.setText("" + imvalue);
+            }
         
-        CalcETA(false);
+            CalcETA(false, maxsteps);
+        }
     }
     
     private void CheckAngles()
@@ -477,17 +568,37 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             
         }
         
-        //anglevector.setText(Float.toString(angle));
+        anglevector.setText(Float.toString(angle));
         prevangle = angle;
     }
 
     @Override
     public void simpleUpdate(float tpf) {
         time += tpf;
+        steptime += tpf;
          
         if (automove){
-            MoveAuto(tpf);
+            MoveAuto(tpf, false);
             CheckAngles(); 
+        }
+        
+        if (stepbystep)
+        {
+            if (steptime > 1.5f)
+            {
+                steptime = 0;
+                stepcounter++;
+                //System.out.println("Tick step!");
+                
+                if (stepcounter > maxsteps )
+                {
+                    stepcounter = 1;
+                }
+                
+                naturalField.setText("      "+ (stepcounter - 1)+"       ");
+            }
+            MoveAuto(tpf, true);
+            //System.out.println("Tick!");
         }
         
     }
@@ -509,6 +620,42 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
                 this.isdragging = false;
             }
         }
+        
+        if (name.equals("Enter") && isPressed)
+        {
+            this.stepbystep = !this.stepbystep;
+            
+            if (this.stepbystep)
+            {
+                guiNode.attachChild(myStepWindow);
+                DecimalFormat decimalFormat = new DecimalFormat("#.00");
+                
+                steptime = 0f;
+                stepcounter = 1;
+                
+                naturalField.setText("      "+ (stepcounter - 1)+"       ");
+                exponentialField.setText("         (" + decimalFormat.format(realvalue) + " + i" + decimalFormat.format(imvalue) + ")");
+            }
+            else
+            {
+                guiNode.detachChild(myStepWindow);
+            }
+        }
+        
+        if (name.equals("arrowleft") && isPressed)
+        {
+            if (nodeindex > 0)
+            {
+                nodeindex--;
+            }
+        }
+        
+        if (name.equals("arrowright") && isPressed)
+        {
+            nodeindex++;
+        }
+        
+        
 
     }
 
@@ -521,5 +668,26 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             }
         }
         
+        if (name.equals("arrowup"))
+        {
+            MoveSegment(0);
+        }
+        
+        if (name.equals("arrowdown"))
+        {
+            MoveSegment(1);
+        }
+        
+    }
+    
+    private void MoveSegment(int direction)
+    {
+        if (direction == 0)
+        {
+            etanode.rotate(0, 0, 0.01f);
+        }
+        else{
+            etanode.rotate(0, 0, -0.01f);
+        }
     }
 }
