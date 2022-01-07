@@ -89,6 +89,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
     private TextField anglevector;
     private TextField naturalField;
     private TextField exponentialField;
+    private TextField resultComplexField;
     private ListBox valueList;
     private float scale = 100f;
     private boolean isdragging = false;
@@ -97,6 +98,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
     private boolean GUI = true;
     private boolean automove = false;
     private boolean stepbystep = false;
+    private boolean pausecalc = false;
     private float prevangle = 0;
     private boolean startcounting = false;
     private boolean goingdown = true;
@@ -150,6 +152,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         inputManager.addMapping("Up", new MouseAxisTrigger(MouseInput.AXIS_Y, true));
         inputManager.addMapping("Down", new MouseAxisTrigger(MouseInput.AXIS_Y, false));
         inputManager.addMapping("Enter", new KeyTrigger(KeyInput.KEY_RETURN));
+        inputManager.addMapping("Pause", new KeyTrigger(KeyInput.KEY_P));
         
         inputManager.addMapping("arrowup", new KeyTrigger(KeyInput.KEY_U));
         inputManager.addMapping("arrowdown", new KeyTrigger(KeyInput.KEY_J));
@@ -163,6 +166,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         inputManager.addListener(this, "Up");
         inputManager.addListener(this, "Down");
         inputManager.addListener(this, "Enter");
+        inputManager.addListener(this, "Pause");
         
         inputManager.addListener(this, "arrowup");
         inputManager.addListener(this, "arrowdown");
@@ -230,11 +234,13 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         
         naturalField = new TextField("      2       ");
         exponentialField = new TextField("         (2 + 3i)");
+        resultComplexField = new TextField("Result: ");
         myStepWindow.setLocalTranslation(cam.getWidth() - 150, cam.getHeight()- 10, 0);
         myStepWindow.addChild(new Label("                  1            "));
         myStepWindow.addChild(new Label("         --------------------  "));
         myStepWindow.addChild(exponentialField);
         myStepWindow.addChild(naturalField);
+        myStepWindow.addChild(resultComplexField);
       
     }
     
@@ -301,6 +307,9 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         float previousreal = 0f;
         float previousimg = 0f;
         
+        DecimalFormat df = new DecimalFormat();
+        df.setMaximumFractionDigits(3);
+        
         for (int i = 1; i < limit; i++)
         {
             Complex divisor = new Complex(i, 0f);
@@ -323,7 +332,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         }
         
         //etanode.attachChild(GenerateLine(realvalue, imvalue - imoffset, previousreal, previousimg, 666)); //remove red line
-        
+        resultComplexField.setText("Result: " + df.format(etasum.getReal()) + " " + df.format(etasum.getImaginary()) + "i");
     }
     
     private Geometry GeneratePoint(float r, float i, int index)
@@ -575,7 +584,10 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
     @Override
     public void simpleUpdate(float tpf) {
         time += tpf;
-        steptime += tpf;
+        
+        if (!pausecalc){
+            steptime += tpf;
+        }
          
         if (automove){
             MoveAuto(tpf, false);
@@ -619,6 +631,11 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             {
                 this.isdragging = false;
             }
+        }
+        
+        if (name.equals("Pause") && isPressed)
+        {
+            this.pausecalc = !this.pausecalc;
         }
         
         if (name.equals("Enter") && isPressed)
