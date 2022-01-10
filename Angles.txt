@@ -24,3 +24,44 @@ Difference between angles
 43.49505		1.295953448	12.87251
 56.36756		1.222668145	12.55126
 68.91882		0	-68.91882
+
+
+##################################################################################################
+Angle velocities test.
+s1 = 0.5 + i
+s2 = 0.5 + 2i
+
+s1 
+-0.54393  0.45181i segment 2 angle = 2.45 rad = 140.29
+0.2626   -0.51417i segment 3 angle = 5.18 rad = 297.05
+-0.09173  0.49151i segment 4 angle = 1.76 rad = 100.57
+-0.01728 -0.44688i segment 5 angle = 4.67 rad = 267.79
+0.08948 0.39832i segment 6   angle = 1.35 rad = 77.34
+-0.13848 -0.35168i segment 7 angle = 4.34 rad = 248.51
+
+s2
+-0.12972 0.69511i segment 2  angle = 1.76 rad = 100.57
+-0.33847 -0.46773i segment 3 angle = 4.09 rad = 234.11
+0.46634 0.18034i segment 4   angle = 0.37 rad = 21.14
+-0.44588 0.03453i segment 5  angle = 3.06 rad = 175.57
+0.36903 -0.1746i segment 6   angle = 5.84 rad = 334.68
+-0.27649 0.2577i segment 7   angle = 2.39 rad = 137.01
+
+rad
+segment 2 vel = -0.69
+segment 3 vel = -1,09
+segment 4 vel = -1.39
+segment 5 vel = -1.61
+segment 6 vel = 4.49
+segment 7 vel = -1.95
+
+deg
+segment 2 vel = 39.72
+segment 3 vel = 62,94
+segment 4 vel = 79.43
+segment 5 vel = 92.22
+segment 6 vel = 102.66
+segment 7 vel = 111.5
+
+
+

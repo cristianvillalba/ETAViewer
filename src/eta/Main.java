@@ -301,6 +301,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         Complex etasum = new Complex(0f, 0f);
         Complex one = new Complex(1f, 0f);
         Complex expon = new Complex(realvalue, imvalue);
+        Complex segmentdata = new Complex(0f, 0f);
         
         etanode.attachChild(GeneratePoint(0f, 0f, 0));
         
@@ -308,11 +309,13 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         float previousimg = 0f;
         
         DecimalFormat df = new DecimalFormat();
-        df.setMaximumFractionDigits(3);
+        df.setMaximumFractionDigits(5);
         
         for (int i = 1; i < limit; i++)
         {
             Complex divisor = new Complex(i, 0f);
+            
+            segmentdata = one.divide(divisor.pow(expon));//save segment data to visualize
             
             if ( i % 2 == 1){
                 etasum = etasum.add(one.divide(divisor.pow(expon)));
@@ -320,6 +323,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             else
             {
                 etasum = etasum.subtract(one.divide(divisor.pow(expon)));
+                segmentdata = segmentdata.multiply(-1.0f);//correct sign of individual term
             }
             
             etanode.attachChild(GeneratePoint( (float)etasum.getReal()*scale, (float)etasum.getImaginary()*scale,i));
@@ -332,7 +336,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         }
         
         //etanode.attachChild(GenerateLine(realvalue, imvalue - imoffset, previousreal, previousimg, 666)); //remove red line
-        resultComplexField.setText("Result: " + df.format(etasum.getReal()) + " " + df.format(etasum.getImaginary()) + "i");
+        resultComplexField.setText("Result: " + df.format(segmentdata.getReal()) + " " + df.format(segmentdata.getImaginary()) + "i");
     }
     
     private Geometry GeneratePoint(float r, float i, int index)
