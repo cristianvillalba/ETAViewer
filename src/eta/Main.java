@@ -30,6 +30,9 @@ import com.simsilica.lemur.Label;
 import com.simsilica.lemur.ListBox;
 import com.simsilica.lemur.TextField;
 import com.simsilica.lemur.style.BaseStyles;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 
@@ -203,7 +206,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         clickMe.addClickCommands(new Command<Button>() {
                 @Override
                 public void execute( Button source ) {
-                    instance.CalcETA(true, maxsteps);
+                    instance.CalcETA(true, maxsteps, true);
                 }
             });
        
@@ -244,7 +247,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
       
     }
     
-    public void CalcETA(boolean focus, int limit)
+    public void CalcETA(boolean focus, int limit, boolean writetofile)
     {
         try{
             if (GUI){
@@ -253,7 +256,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
                 point.setLocalTranslation(realvalue * scale, (imvalue - imoffset)*scale, 0f);
             }
             
-            ConstructETA(limit);
+            ConstructETA(limit, writetofile);
             
             if (GUI && focus){
                 GuiGlobals.getInstance().releaseFocus(myMainWindow);
@@ -291,7 +294,35 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         
     }
     
-    private void ConstructETA(int limit)
+    private void CreateFile(String name)
+    {
+        try {
+            File myObj = new File(name);
+            if (myObj.createNewFile()) {
+              System.out.println("File created: " + myObj.getName());
+            } else {
+              System.out.println("File already exists.");
+            }
+          } 
+        catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+    }
+    
+    private void WriteToFile(String name, String data){
+        try {
+            FileWriter myWriter = new FileWriter(name, true);
+            myWriter.write(data);
+            myWriter.close();
+            System.out.println("Successfully wrote to the file.");
+          } catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+          }
+    }
+    
+    private void ConstructETA(int limit, boolean writetofile)
     {
         temppoints.clear();
         temppoints.add(new Vector3f());
@@ -310,6 +341,13 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         
         DecimalFormat df = new DecimalFormat();
         df.setMaximumFractionDigits(5);
+     
+        
+        String randfilename = "example-" + FastMath.rand.nextInt() + ".csv";
+        
+        if (writetofile){
+            this.CreateFile(randfilename);
+        }
         
         for (int i = 1; i < limit; i++)
         {
@@ -324,6 +362,10 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             {
                 etasum = etasum.subtract(one.divide(divisor.pow(expon)));
                 segmentdata = segmentdata.multiply(-1.0f);//correct sign of individual term
+            }
+            
+            if (writetofile){
+                this.WriteToFile(randfilename, i + ", " + segmentdata.getReal() + ", " + segmentdata.getImaginary() + ", " + (segmentdata.getArgument() + Math.PI*2)+ ", " + Math.toDegrees((segmentdata.getArgument() + Math.PI*2)) + "\n");
             }
             
             etanode.attachChild(GeneratePoint( (float)etasum.getReal()*scale, (float)etasum.getImaginary()*scale,i));
@@ -506,15 +548,15 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         realField.setText("" + realvalue);
         imgField.setText("" + imvalue);
         
-        CalcETA(false, maxsteps);
+        CalcETA(false, maxsteps, false);
         
         point.setLocalTranslation(newpos.x, newpos.y, 0f);
     }
     
-    private void MoveAuto(float tpf, boolean stbst)
+    private void MoveAuto(float tpf, boolean stepbystep)
     {
-        if (stbst){
-            CalcETA(false, stepcounter);
+        if (stepbystep){
+            CalcETA(false, stepcounter, false);
         }
         else{
             realvalue = 0.5f;
@@ -525,7 +567,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
                 imgField.setText("" + imvalue);
             }
         
-            CalcETA(false, maxsteps);
+            CalcETA(false, maxsteps, false);
         }
     }
     
