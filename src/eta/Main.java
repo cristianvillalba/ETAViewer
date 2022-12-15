@@ -35,6 +35,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Main Class
@@ -234,6 +235,14 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
                 }
             });
         
+        Button clickMe03 = myMainWindow.addChild(new Button("Analyze ETA to file..."));
+        clickMe03.addClickCommands(new Command<Button>() {
+                @Override
+                public void execute( Button source ) {
+                    instance.CalcEtaToAnalyze(true, maxsteps);
+                }
+            });
+        
         
         naturalField = new TextField("      2       ");
         exponentialField = new TextField("         (2 + 3i)");
@@ -257,6 +266,35 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             }
             
             ConstructETA(limit, writetofile);
+            
+            if (GUI && focus){
+                GuiGlobals.getInstance().releaseFocus(myMainWindow);
+            }
+        }
+        catch(Exception n)
+        {
+            
+        }   
+    }
+    
+    public void CalcEtaToAnalyze(boolean focus, int limit)
+    {
+        try{
+
+            int numberofpoints = 10;
+            
+            imvalue = 230.0f;
+            
+            for (int i = 0; i < numberofpoints; i++)
+            {
+                realvalue = 0.5f;
+                imvalue += 1.0f;
+                 
+                point.setLocalTranslation(realvalue * scale, (imvalue - imoffset)*scale, 0f);
+                ConstructETAToAnalyze(limit);
+                
+            }
+            
             
             if (GUI && focus){
                 GuiGlobals.getInstance().releaseFocus(myMainWindow);
@@ -365,7 +403,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             }
             
             if (writetofile){
-                this.WriteToFile(randfilename, i + ", " + segmentdata.getReal() + ", " + segmentdata.getImaginary() + ", " + (segmentdata.getArgument() + Math.PI*2)+ ", " + Math.toDegrees((segmentdata.getArgument() + Math.PI*2)) + "\n");
+                this.WriteToFile(randfilename, i + ", " + segmentdata.getReal() + ", " + segmentdata.getImaginary() + ", " + etasum.getReal() + ", " + etasum.getImaginary() + ", " + (segmentdata.getArgument() + Math.PI*2)+ ", " + Math.toDegrees((segmentdata.getArgument() + Math.PI*2)) + "\n");
             }
             
             etanode.attachChild(GeneratePoint( (float)etasum.getReal()*scale, (float)etasum.getImaginary()*scale,i));
@@ -380,6 +418,79 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         //etanode.attachChild(GenerateLine(realvalue, imvalue - imoffset, previousreal, previousimg, 666)); //remove red line
         resultComplexField.setText("Result: " + df.format(segmentdata.getReal()) + " " + df.format(segmentdata.getImaginary()) + "i");
     }
+    
+    private void ConstructETAToAnalyze(int limit)
+    {
+        temppoints.clear();
+        temppoints.add(new Vector3f());
+        
+        etanode.detachAllChildren();
+        
+        Complex etasum = new Complex(0f, 0f);
+        Complex one = new Complex(1f, 0f);
+        Complex expon = new Complex(realvalue, imvalue);
+        Complex segmentdata = new Complex(0f, 0f);
+        
+        etanode.attachChild(GeneratePoint(0f, 0f, 0));
+        
+        float previousreal = 0f;
+        float previousimg = 0f;
+        
+        DecimalFormat df = new DecimalFormat();
+        df.setMaximumFractionDigits(5);
+     
+        
+        String randfilename = "example-" + FastMath.rand.nextInt() + ".csv";
+        
+        float[] realsorted = new float[limit];
+        float[] imagsorted = new float[limit];
+
+        ArrayList<String> fileoutput = new ArrayList<String>();
+ 
+        this.CreateFile(randfilename);
+        
+        for (int i = 1; i < limit; i++)
+        {
+            Complex divisor = new Complex(i, 0f);
+            
+            segmentdata = one.divide(divisor.pow(expon));//save segment data to visualize
+            
+            if ( i % 2 == 1){
+                etasum = etasum.add(one.divide(divisor.pow(expon)));
+            }
+            else
+            {
+                etasum = etasum.subtract(one.divide(divisor.pow(expon)));
+                segmentdata = segmentdata.multiply(-1.0f);//correct sign of individual term
+            }
+            
+            
+            fileoutput.add(i + ", " + segmentdata.getReal() + ", " + segmentdata.getImaginary() + ", " + etasum.getReal() + ", " + etasum.getImaginary() + ", ");
+            
+            realsorted[i - 1] = (float)segmentdata.getReal();
+            imagsorted[i - 1] = (float)segmentdata.getImaginary();
+            
+            etanode.attachChild(GeneratePoint( (float)etasum.getReal()*scale, (float)etasum.getImaginary()*scale,i));
+            etanode.attachChild(GenerateLine(previousreal, previousimg,(float)etasum.getReal(), (float)etasum.getImaginary(),i ));
+            
+            previousreal =  (float)etasum.getReal();
+            previousimg = (float)etasum.getImaginary();
+            
+            temppoints.add(new Vector3f(previousreal, previousimg, 0.0f));
+        }
+        
+        Arrays.sort(realsorted);
+        Arrays.sort(imagsorted);
+
+        for (int i = 1; i < limit; i++)
+        {
+            this.WriteToFile(randfilename, fileoutput.get(i - 1) + realsorted[i - 1] +", " + imagsorted[i - 1] + "\n");
+        }
+        
+        resultComplexField.setText("Result: " + df.format(segmentdata.getReal()) + " " + df.format(segmentdata.getImaginary()) + "i");
+    }
+    
+    
     
     private Geometry GeneratePoint(float r, float i, int index)
     {
