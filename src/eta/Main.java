@@ -291,7 +291,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
                 imvalue += 1.0f;
                  
                 point.setLocalTranslation(realvalue * scale, (imvalue - imoffset)*scale, 0f);
-                ConstructETAToAnalyze(limit);
+                ConstructETAToAnalyze(limit, imvalue);
                 
             }
             
@@ -419,7 +419,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         resultComplexField.setText("Result: " + df.format(segmentdata.getReal()) + " " + df.format(segmentdata.getImaginary()) + "i");
     }
     
-    private void ConstructETAToAnalyze(int limit)
+    private void ConstructETAToAnalyze(int limit, float name)
     {
         temppoints.clear();
         temppoints.add(new Vector3f());
@@ -440,7 +440,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         df.setMaximumFractionDigits(5);
      
         
-        String randfilename = "example-" + FastMath.rand.nextInt() + ".csv";
+        String randfilename = "example-" + name + ".csv";
         
         float[] realsorted = new float[limit];
         float[] imagsorted = new float[limit];
