@@ -1,351 +1,48 @@
-package eta;
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package segment;
 
 import com.jme3.app.SimpleApplication;
-import com.jme3.collision.CollisionResults;
-import com.jme3.input.KeyInput;
-import com.jme3.input.MouseInput;
+import com.jme3.font.BitmapText;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.AnalogListener;
 import com.jme3.input.controls.KeyTrigger;
-import com.jme3.input.controls.MouseAxisTrigger;
-import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
-import com.jme3.math.FastMath;
-import com.jme3.math.Plane;
-import com.jme3.math.Ray;
-import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
-import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Line;
-import com.jme3.scene.shape.Sphere;
-import com.simsilica.lemur.Button;
-import com.simsilica.lemur.Command;
-import com.simsilica.lemur.Container;
-import com.simsilica.lemur.GuiGlobals;
-import com.simsilica.lemur.Label;
-import com.simsilica.lemur.ListBox;
-import com.simsilica.lemur.TextField;
-import com.simsilica.lemur.style.BaseStyles;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
 
 /**
- * Main Class
- * 
- * e to the PI i = (1 + piI/n) n ....esto es un nro complejo...ver video de mathologer para entender por que es una espiral
- * 
- * de la forma modular de los nros complejos se puede entender que es un nro real y una rotacion en el unit circle
- * ver 3blue1brown
- * 
- * 
- * --- angulos entre secuencias:
- * Calc angle distance of point: 1
-Angle time: 18.090582
-Calc angle distance of point: 2
-Angle time: 30.939487
-Calc angle distance of point: 3
-Angle time: 43.49505
-Calc angle distance of point: 4
-Angle time: 56.36756
-Calc angle distance of point: 5
-Angle time: 68.91882
-Calc angle distance of point: 6
-Angle time: 163.03911 ---ERROR
-Calc angle distance of point: 7
-
-Difference between angles
-12.848905
-12.555563
-12.87251
-12.55126
-
-		mult	sum
-18.090582		1.710253822	12.848905
-30.939487		1.405810316	12.555563
-43.49505		1.295953448	12.87251
-56.36756		1.222668145	12.55126
-68.91882		0	-68.91882
- * 
+ *
+ * @author cvillalba
  */
-public class Main extends SimpleApplication implements ActionListener, AnalogListener{
-    private float realvalue = 1.0f;
-    private float imvalue = 1.0f;
-    private float imoffset = 0f;
-    private Geometry point;
-    private Node etanode;
-    private float time = 0f;
-    private float steptime = 0f;
-    private int stepcounter = 1;
-    private int maxsteps = 150;
-    private Container myMainWindow;
-    private Container myStepWindow;
-    private TextField realField;
-    private TextField imgField;
-    private TextField imgOffset;
-    private TextField anglevector;
-    private TextField naturalField;
-    private TextField exponentialField;
-    private TextField resultComplexField;
-    private ListBox valueList;
-    private float scale = 100f;
-    private boolean isdragging = false;
-    private ArrayList<Vector3f> temppoints = new ArrayList<Vector3f>();
+public class SaveToFile extends SimpleApplication implements ActionListener , AnalogListener{
+    private float calcscale = 1.0f;
+    private float plotscalex = 1.0f;
+    private float plotscaley = 1.0f;
+    private float speed = 0.01f;
+    private boolean pause = true;
+    private float currentTime = 0f;
+    private float refreshTime = 0.02f;
+    private float initialImaginary = 0.0f;
+    private BitmapText hudTextReal;
+    private BitmapText hudTextImg;
+    private BitmapText hudTextSpeed;
+    private BitmapText hudTextScaleX;
+    private BitmapText hudTextScaleY;
     
-    private boolean GUI = true;
-    private boolean automove = false;
-    private boolean stepbystep = false;
-    private boolean pausecalc = false;
-    private float prevangle = 0;
-    private boolean startcounting = false;
-    private boolean goingdown = true;
-    private int indexangle = 1;
-    
-    private int nodeindex = 0;//index to move each index
-    
-    public static Main instance;
+    private float svaluer = 0.95f;
     
     public static void main(String[] args) {
-        Main app = new Main();
+        SaveToFile app = new SaveToFile();
         app.start();
-    }
-
-    @Override
-    public void simpleInitApp() {
-        instance = this;
-        etanode = new Node();
-        etanode.setLocalTranslation(0f, 0f, -50f);
-        
-        rootNode.attachChild(etanode);
-        
-        this.flyCam.setMoveSpeed(100f);
-        this.cam.setLocation(new Vector3f(50f, 25f, 500f));
-        this.cam.lookAt(new Vector3f(25f,0f,0f), Vector3f.UNIT_Y);
-        
-        // Initialize the globals access so that the default
-        // components can find what they need.
-        GuiGlobals.initialize(this);
-        // Load the 'glass' style
-        BaseStyles.loadGlassStyle();
-        // Set 'glass' as the default style when not specified
-        GuiGlobals.getInstance().getStyles().setDefaultStyle("glass");
-        
-        RegisterInput();
-        
-        InitAxis();
-
-        InitPoint();
-        
-        if (GUI){
-            InitGUI();
-        }
-    }
-    
-    private void RegisterInput()
-    {
-        inputManager.addMapping("Drag", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
-        inputManager.addMapping("Right", new MouseAxisTrigger(MouseInput.AXIS_X, true));
-        inputManager.addMapping("Left", new MouseAxisTrigger(MouseInput.AXIS_X, false));
-        inputManager.addMapping("Up", new MouseAxisTrigger(MouseInput.AXIS_Y, true));
-        inputManager.addMapping("Down", new MouseAxisTrigger(MouseInput.AXIS_Y, false));
-        inputManager.addMapping("Enter", new KeyTrigger(KeyInput.KEY_RETURN));
-        inputManager.addMapping("Pause", new KeyTrigger(KeyInput.KEY_P));
-        
-        inputManager.addMapping("arrowup", new KeyTrigger(KeyInput.KEY_U));
-        inputManager.addMapping("arrowdown", new KeyTrigger(KeyInput.KEY_J));
-        inputManager.addMapping("arrowleft", new KeyTrigger(KeyInput.KEY_H));
-        inputManager.addMapping("arrowright", new KeyTrigger(KeyInput.KEY_D));
-        
-
-        inputManager.addListener(this, "Drag");
-        inputManager.addListener(this, "Right");
-        inputManager.addListener(this, "Left");
-        inputManager.addListener(this, "Up");
-        inputManager.addListener(this, "Down");
-        inputManager.addListener(this, "Enter");
-        inputManager.addListener(this, "Pause");
-        
-        inputManager.addListener(this, "arrowup");
-        inputManager.addListener(this, "arrowdown");
-        inputManager.addListener(this, "arrowleft");
-        inputManager.addListener(this, "arrowright");
-    }
-    
-    private void InitGUI(){
-        
-        myMainWindow = new Container();
-        myStepWindow = new Container();
-        realField = new TextField("R:");
-        imgField = new TextField("I:");
-        anglevector = new TextField("Angle:");
-        imgOffset = new TextField("Offset Img:");
-        
-        realField.setText("" + realvalue);
-        imgField.setText("" + imvalue);
-        imgOffset.setText("" + imoffset);
-        anglevector.setText("" + imoffset);
-        
-        valueList = new ListBox();
-        
-        guiNode.attachChild(myMainWindow);
-
-        myMainWindow.setLocalTranslation(10, cam.getHeight()- 10, 0);
-
-        myMainWindow.addChild(new Label("ETA Viewer"));
-        myMainWindow.addChild(realField);
-        myMainWindow.addChild(imgField);
-        myMainWindow.addChild(anglevector);
-        myMainWindow.addChild(valueList);
-        Button clickMe = myMainWindow.addChild(new Button("Calc ETA..."));
-        clickMe.addClickCommands(new Command<Button>() {
-                @Override
-                public void execute( Button source ) {
-                    instance.CalcETA(true, maxsteps, true);
-                }
-            });
-       
-        myMainWindow.addChild(imgOffset);
-        Button clickMe01 = myMainWindow.addChild(new Button("Offset IMG..."));
-        clickMe01.addClickCommands(new Command<Button>() {
-                @Override
-                public void execute( Button source ) {
-                    instance.Offset();
-                }
-            });
-        
-        Button clickMe02 = myMainWindow.addChild(new Button("Automove..."));
-        clickMe02.addClickCommands(new Command<Button>() {
-                @Override
-                public void execute( Button source ) {
-                    if (automove)
-                    {
-                        automove = false;
-                    }
-                    else
-                    {
-                        automove = true;
-                    }
-                }
-            });
-        
-        Button clickMe03 = myMainWindow.addChild(new Button("Analyze ETA to file..."));
-        clickMe03.addClickCommands(new Command<Button>() {
-                @Override
-                public void execute( Button source ) {
-                    instance.CalcEtaToAnalyze(true, maxsteps);
-                }
-            });
-        
-        
-        naturalField = new TextField("      2       ");
-        exponentialField = new TextField("         (2 + 3i)");
-        resultComplexField = new TextField("Result: ");
-        myStepWindow.setLocalTranslation(cam.getWidth() - 150, cam.getHeight()- 10, 0);
-        myStepWindow.addChild(new Label("                  1            "));
-        myStepWindow.addChild(new Label("         --------------------  "));
-        myStepWindow.addChild(exponentialField);
-        myStepWindow.addChild(naturalField);
-        myStepWindow.addChild(resultComplexField);
-      
-    }
-    
-    public void CalcETA(boolean focus, int limit, boolean writetofile)
-    {
-        try{
-            if (GUI){
-                realvalue = Float.parseFloat(realField.getText());
-                imvalue = Float.parseFloat(imgField.getText());
-                point.setLocalTranslation(realvalue * scale, (imvalue - imoffset)*scale, 0f);
-            }
-            
-            ConstructETA(limit, writetofile);
-            
-            if (GUI && focus){
-                GuiGlobals.getInstance().releaseFocus(myMainWindow);
-            }
-        }
-        catch(Exception n)
-        {
-            
-        }   
-    }
-    
-    public void CalcEtaToAnalyze(boolean focus, int limit)
-    {
-        try{
-
-            int numberofpoints = 10;
-            
-            imvalue = 230.0f;
-            
-            for (int i = 0; i < numberofpoints; i++)
-            {
-                realvalue = 0.5f;
-                imvalue += 1.0f;
-                 
-                point.setLocalTranslation(realvalue * scale, (imvalue - imoffset)*scale, 0f);
-                ConstructETAToAnalyze(limit, imvalue);
-                
-            }
-            
-            
-            if (GUI && focus){
-                GuiGlobals.getInstance().releaseFocus(myMainWindow);
-            }
-        }
-        catch(Exception n)
-        {
-            
-        }
-        
-    }
-    
-    public void Offset()
-    {
-        try{
-            imoffset = Float.parseFloat(imgOffset.getText());
-            
-            rootNode.detachAllChildren();
-            
-            etanode = new Node();
-            etanode.setLocalTranslation(0f, 0f, -50f);
-
-            rootNode.attachChild(etanode);
-            
-            InitAxis();
-            
-            InitPoint();
-            
-            GuiGlobals.getInstance().releaseFocus(myMainWindow);
-        }
-        catch(Exception n)
-        {
-            
-        }
-        
-    }
-    
-    private void CreateFile(String name)
-    {
-        try {
-            File myObj = new File(name);
-            if (myObj.createNewFile()) {
-              System.out.println("File created: " + myObj.getName());
-            } else {
-              System.out.println("File already exists.");
-            }
-          } 
-        catch (IOException e) {
-            System.out.println("An error occurred.");
-            e.printStackTrace();
-        }
     }
     
     private void WriteToFile(String name, String data){
@@ -360,508 +57,321 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
           }
     }
     
-    private void ConstructETA(int limit, boolean writetofile)
+    public void ETAtoFile()
     {
-        temppoints.clear();
-        temppoints.add(new Vector3f());
+        System.out.println("ETA save to file...");
+        System.out.println("v 0.0.1");
         
-        etanode.detachAllChildren();
+        int sign = 1;
+        StringBuilder sbr = new StringBuilder();
+        StringBuilder sbi = new StringBuilder();
+        DecimalFormat df = new DecimalFormat("#.000000000000"); 
         
-        Complex etasum = new Complex(0f, 0f);
-        Complex one = new Complex(1f, 0f);
-        Complex expon = new Complex(realvalue, imvalue);
-        Complex segmentdata = new Complex(0f, 0f);
         
-        etanode.attachChild(GeneratePoint(0f, 0f, 0));
-        
-        float previousreal = 0f;
-        float previousimg = 0f;
-        
-        DecimalFormat df = new DecimalFormat();
-        df.setMaximumFractionDigits(5);
-     
-        
-        String randfilename = "example-" + FastMath.rand.nextInt() + ".csv";
-        
-        if (writetofile){
-            this.CreateFile(randfilename);
-        }
-        
-        for (int i = 1; i < limit; i++)
+        Complex svalue = new Complex(0.75, 14.1347251417346937904572519835624702707842571156992431);
+             
+        Complex finalsum = new Complex(0,0);
+        for (int i = 1; i < 3000; i++)
         {
-            Complex divisor = new Complex(i, 0f);
+            Complex number = new Complex(i, 0);
+            number = number.pow(svalue);
             
-            segmentdata = one.divide(divisor.pow(expon));//save segment data to visualize
+            Complex divider = new Complex(sign, 0);
             
-            if ( i % 2 == 1){
-                etasum = etasum.add(one.divide(divisor.pow(expon)));
-            }
-            else
-            {
-                etasum = etasum.subtract(one.divide(divisor.pow(expon)));
-                segmentdata = segmentdata.multiply(-1.0f);//correct sign of individual term
-            }
+            Complex data = divider.divide(number);
             
-            if (writetofile){
-                this.WriteToFile(randfilename, i + ", " + segmentdata.getReal() + ", " + segmentdata.getImaginary() + ", " + etasum.getReal() + ", " + etasum.getImaginary() + ", " + (segmentdata.getArgument() + Math.PI*2)+ ", " + Math.toDegrees((segmentdata.getArgument() + Math.PI*2)) + "\n");
-            }
+            sbr.append(df.format(data.getReal()) + ",");
+            sbi.append(df.format(data.getImaginary()) + ",");
             
-            etanode.attachChild(GeneratePoint( (float)etasum.getReal()*scale, (float)etasum.getImaginary()*scale,i));
-            etanode.attachChild(GenerateLine(previousreal, previousimg,(float)etasum.getReal(), (float)etasum.getImaginary(),i ));
-            
-            previousreal =  (float)etasum.getReal();
-            previousimg = (float)etasum.getImaginary();
-            
-            temppoints.add(new Vector3f(previousreal, previousimg, 0.0f));
+            finalsum = finalsum.add(data);
+            sign *= -1;
         }
         
-        //etanode.attachChild(GenerateLine(realvalue, imvalue - imoffset, previousreal, previousimg, 666)); //remove red line
-        resultComplexField.setText("Result: " + df.format(segmentdata.getReal()) + " " + df.format(segmentdata.getImaginary()) + "i");
+        this.WriteToFile("etasave.csv", sbr.toString() + "\n");
+        this.WriteToFile("etasave.csv", sbi.toString() + "\n");
+        
+        this.WriteToFile("etasave.csv", "S value r:" + df.format(svalue.getReal()) + "\n");
+        this.WriteToFile("etasave.csv", "S value i:" + df.format(svalue.getImaginary()) + "\n");
+        
+        this.WriteToFile("etasave.csv", "Final sum r:" + df.format(finalsum.getReal()) + "\n");
+        this.WriteToFile("etasave.csv", "Final sum i:" + df.format(finalsum.getImaginary()) + "\n");
     }
-    
-    private void ConstructETAToAnalyze(int limit, float name)
-    {
-        temppoints.clear();
-        temppoints.add(new Vector3f());
-        
-        etanode.detachAllChildren();
-        
-        Complex etasum = new Complex(0f, 0f);
-        Complex one = new Complex(1f, 0f);
-        Complex expon = new Complex(realvalue, imvalue);
-        Complex segmentdata = new Complex(0f, 0f);
-        
-        etanode.attachChild(GeneratePoint(0f, 0f, 0));
-        
-        float previousreal = 0f;
-        float previousimg = 0f;
-        
-        DecimalFormat df = new DecimalFormat();
-        df.setMaximumFractionDigits(5);
-     
-        
-        String randfilename = "example-" + name + ".csv";
-        
-        float[] realsorted = new float[limit];
-        float[] imagsorted = new float[limit];
 
-        ArrayList<String> fileoutput = new ArrayList<String>();
- 
-        this.CreateFile(randfilename);
-        
-        for (int i = 1; i < limit; i++)
-        {
-            Complex divisor = new Complex(i, 0f);
-            
-            segmentdata = one.divide(divisor.pow(expon));//save segment data to visualize
-            
-            if ( i % 2 == 1){
-                etasum = etasum.add(one.divide(divisor.pow(expon)));
-            }
-            else
-            {
-                etasum = etasum.subtract(one.divide(divisor.pow(expon)));
-                segmentdata = segmentdata.multiply(-1.0f);//correct sign of individual term
-            }
-            
-            
-            fileoutput.add(i + ", " + segmentdata.getReal() + ", " + segmentdata.getImaginary() + ", " + etasum.getReal() + ", " + etasum.getImaginary() + ", ");
-            
-            realsorted[i - 1] = (float)segmentdata.getReal();
-            imagsorted[i - 1] = (float)segmentdata.getImaginary();
-            
-            etanode.attachChild(GeneratePoint( (float)etasum.getReal()*scale, (float)etasum.getImaginary()*scale,i));
-            etanode.attachChild(GenerateLine(previousreal, previousimg,(float)etasum.getReal(), (float)etasum.getImaginary(),i ));
-            
-            previousreal =  (float)etasum.getReal();
-            previousimg = (float)etasum.getImaginary();
-            
-            temppoints.add(new Vector3f(previousreal, previousimg, 0.0f));
-        }
-        
-        Arrays.sort(realsorted);
-        Arrays.sort(imagsorted);
-
-        for (int i = 1; i < limit; i++)
-        {
-            this.WriteToFile(randfilename, fileoutput.get(i - 1) + realsorted[i - 1] +", " + imagsorted[i - 1] + "\n");
-        }
-        
-        resultComplexField.setText("Result: " + df.format(segmentdata.getReal()) + " " + df.format(segmentdata.getImaginary()) + "i");
-    }
-    
-    
-    
-    private Geometry GeneratePoint(float r, float i, int index)
-    {
-        Sphere svalue = new Sphere(4,4, 0.5f);
-        
-        Geometry point1 = new Geometry("svalue" + index, svalue);
-        Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat1.setColor("Color", ColorRGBA.Blue);
-        point1.setMaterial(mat1);
-        
-        point1.setLocalTranslation(r, i, 0f);
-        return point1;
-    }
-    
-    private Geometry GenerateLine(float r0, float i0, float r1, float i1, int index)
-    {
-        Vector3f origin = new Vector3f(r0*scale, i0*scale, 0f);
-        Vector3f destination = new Vector3f(r1*scale, i1*scale, 0f);
-        
-        Line linexp = new Line(origin, destination);
-        
-        Geometry linexpos = new Geometry("etaline" + index, linexp);
-        Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        
-        if (index != 666){
-            mat1.setColor("Color", ColorRGBA.Green);
-        }
-        else
-        {
-            mat1.setColor("Color", ColorRGBA.Red);
-        }
-        linexpos.setMaterial(mat1);
-        
-        return linexpos;
-    }
-    
     private void InitAxis()
     {
         Line linexp = new Line(Vector3f.ZERO, Vector3f.UNIT_X.mult(500));
         
         Geometry linexpos = new Geometry("xaxispos", linexp);
         Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat1.setColor("Color", ColorRGBA.White);
+        mat1.setColor("Color", ColorRGBA.Gray);
         linexpos.setMaterial(mat1);
         
         Line linexn = new Line(Vector3f.ZERO, Vector3f.UNIT_X.mult(-500));
         
         Geometry linexneg = new Geometry("xaxisneg", linexn);
         Material mat2 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat2.setColor("Color", ColorRGBA.White);
+        mat2.setColor("Color", ColorRGBA.Gray);
         linexneg.setMaterial(mat2);
         
         Line lineyp = new Line(Vector3f.ZERO, Vector3f.UNIT_Y.mult(500));
         
         Geometry lineypos = new Geometry("yaxispos", lineyp);
         Material mat3 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat3.setColor("Color", ColorRGBA.White);
+        mat3.setColor("Color", ColorRGBA.Gray);
         lineypos.setMaterial(mat3);
         
         Line lineyn = new Line(Vector3f.ZERO, Vector3f.UNIT_Y.mult(-500));
         
         Geometry lineyneg = new Geometry("yaxisneg", lineyn);
         Material mat4 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat4.setColor("Color", ColorRGBA.White);
+        mat4.setColor("Color", ColorRGBA.Gray);
         lineyneg.setMaterial(mat4);
         
-        Line linecritic = new Line(new Vector3f(0.5f*scale, -500, 0), new Vector3f(0.5f*scale, 500, 0));
-        
-        Geometry linecrytic = new Geometry("critic", linecritic);
-        Material mat4a = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat4a.setColor("Color", ColorRGBA.Yellow);
-        linecrytic.setMaterial(mat4a);
-        
-        Line zero01 = new Line(new Vector3f(-500, (14.1347f - imoffset)*scale, 0), new Vector3f(500, (14.1347f - imoffset)*scale, 0));
-        
-        Geometry zero01g = new Geometry("zero1", zero01);
-        Material matz1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        matz1.setColor("Color", ColorRGBA.Green);
-        zero01g.setMaterial(matz1);
-        
-        Line zero02 = new Line(new Vector3f(-500, (21.02203f - imoffset)*scale, 0), new Vector3f(500, (21.02203f - imoffset)*scale, 0));
-        
-        Geometry zero02g = new Geometry("zero2", zero02);
-        Material matz2 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        matz2.setColor("Color", ColorRGBA.Green);
-        zero02g.setMaterial(matz2);
-        
         Node realaxis = new Node();
-        
         realaxis.attachChild(linexpos);
         realaxis.attachChild(linexneg);
         realaxis.attachChild(lineypos);
         realaxis.attachChild(lineyneg);
-        realaxis.attachChild(linecrytic);
-        realaxis.attachChild(zero01g);
-        realaxis.attachChild(zero02g);
-        
-        Material gray = mat2.clone();
-        gray.setColor("Color", ColorRGBA.Gray);
-        
-        Geometry linexpos2 = linexpos.clone();
-        linexpos2.setMaterial(gray);
-        Geometry linexneg2 = linexneg.clone();
-        linexneg2.setMaterial(gray);
-        Geometry lineypos2 = lineypos.clone();
-        lineypos2.setMaterial(gray);
-        Geometry lineyneg2 = lineyneg.clone();
-        lineyneg2.setMaterial(gray);
-        
-        Node realaxis2 = new Node();
-        
-        realaxis2.attachChild(linexpos2);
-        realaxis2.attachChild(linexneg2);
-        realaxis2.attachChild(lineypos2);
-        realaxis2.attachChild(lineyneg2);
-        
-        realaxis2.setLocalTranslation(0, 0, -50f);
         
         rootNode.attachChild(realaxis);
-        rootNode.attachChild(realaxis2);
-        
     }
     
-    private void InitPoint()
+    private Geometry GenerateLine(float r0, float i0, float r1, float i1, int index, int color)
     {
-        Sphere svalue = new Sphere(4,4, 2.5f);
+        float localscale = calcscale;
         
-        point = new Geometry("svalue", svalue);
+        Vector3f origin = new Vector3f(r0*localscale, i0*localscale, 0f);
+        Vector3f destination = new Vector3f(r1*localscale, i1*localscale, 0f);
+        
+        Line linexp = new Line(origin, destination);
+        
+        Geometry linexpos = new Geometry("etaline" + index, linexp);
         Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat1.setColor("Color", ColorRGBA.Blue);
-        point.setMaterial(mat1);
         
-        point.setLocalTranslation(realvalue * scale, (imvalue - imoffset)* scale, 0f);
-        rootNode.attachChild(point);
+        if (color == 0){
+            mat1.setColor("Color", ColorRGBA.Green);
+        }
+        else if (color == 1)
+        {
+            mat1.setColor("Color", ColorRGBA.Red);
+        }
+        else
+        {
+            mat1.setColor("Color", ColorRGBA.Gray);
+        }
         
+        linexpos.setMaterial(mat1);
+        
+        return linexpos;
     }
     
-    private void HitTest()
-    {
-        Vector2f mouseCoords = new Vector2f(inputManager.getCursorPosition());
-        Ray mouseRay = new Ray(cam.getWorldCoordinates(mouseCoords, 0),cam.getWorldCoordinates(mouseCoords, 1).subtractLocal(cam.getWorldCoordinates(mouseCoords, 0)).normalizeLocal());
-          
-        CollisionResults results = new CollisionResults();
-
-        point.collideWith(mouseRay, results);
-
-        if (results.size() > 0)
-        {
-            this.isdragging = true;
-        }  
+    @Override
+    public void simpleInitApp() {
+        InitAxis();
+        
+        InitDisplay();
+        
+        registerInput();
+        
+        getCamera().setLocation(new Vector3f(0,0,100));
+        getFlyByCamera().setMoveSpeed(50.0f);
+        
+        CalculateGraph(svaluer, 14.1347251417346937904572519835624702707842571156992431f);
     }
     
-    private void MovePoint()
+    private void InitDisplay()
     {
-        Vector2f mouseCoords = new Vector2f(inputManager.getCursorPosition());
-        Ray mouseRay = new Ray(cam.getWorldCoordinates(mouseCoords, 0),cam.getWorldCoordinates(mouseCoords, 1).subtractLocal(cam.getWorldCoordinates(mouseCoords, 0)).normalizeLocal());
-          
-        Vector3f newpos = new Vector3f();
-        Plane plane = new Plane(Vector3f.UNIT_Z,0f);
+        hudTextReal = new BitmapText(guiFont, false);
+        hudTextReal.setSize(guiFont.getCharSet().getRenderedSize());      // font size
+        hudTextReal.setColor(ColorRGBA.White);                             // font color
+        hudTextReal.setText("0");             // the text
+        hudTextReal.setLocalTranslation(200, hudTextReal.getLineHeight(), 0); // position
+        guiNode.attachChild(hudTextReal);
         
-        mouseRay.intersectsWherePlane(plane, newpos);
+        hudTextImg = new BitmapText(guiFont, false);
+        hudTextImg.setSize(guiFont.getCharSet().getRenderedSize());      // font size
+        hudTextImg.setColor(ColorRGBA.White);                             // font color
+        hudTextImg.setText("1");             // the text
+        hudTextImg.setLocalTranslation(280, hudTextImg.getLineHeight(), 0); // position
+        guiNode.attachChild(hudTextImg);
         
-        realvalue = newpos.x / scale;
-        imvalue = newpos.y / scale + imoffset;
+        hudTextSpeed = new BitmapText(guiFont, false);
+        hudTextSpeed.setSize(guiFont.getCharSet().getRenderedSize());      // font size
+        hudTextSpeed.setColor(ColorRGBA.Yellow);                             // font color
+        hudTextSpeed.setText("1");             // the text
+        hudTextSpeed.setLocalTranslation(500, hudTextSpeed.getLineHeight(), 0); // position
+        guiNode.attachChild(hudTextSpeed);
         
-        realField.setText("" + realvalue);
-        imgField.setText("" + imvalue);
+        hudTextScaleX = new BitmapText(guiFont, false);
+        hudTextScaleX.setSize(guiFont.getCharSet().getRenderedSize());      // font size
+        hudTextScaleX.setColor(ColorRGBA.Yellow);                             // font color
+        hudTextScaleX.setText("1");             // the text
+        hudTextScaleX.setLocalTranslation(700, hudTextScaleX.getLineHeight(), 0); // position
+        guiNode.attachChild(hudTextScaleX);
         
-        CalcETA(false, maxsteps, false);
-        
-        point.setLocalTranslation(newpos.x, newpos.y, 0f);
+        hudTextScaleY = new BitmapText(guiFont, false);
+        hudTextScaleY.setSize(guiFont.getCharSet().getRenderedSize());      // font size
+        hudTextScaleY.setColor(ColorRGBA.Yellow);                             // font color
+        hudTextScaleY.setText("1");             // the text
+        hudTextScaleY.setLocalTranslation(900, hudTextScaleY.getLineHeight(), 0); // position
+        guiNode.attachChild(hudTextScaleY);
     }
     
-    private void MoveAuto(float tpf, boolean stepbystep)
-    {
-        if (stepbystep){
-            CalcETA(false, stepcounter, false);
-        }
-        else{
-            realvalue = 0.5f;
-            imvalue = imvalue + 0.5f*tpf;
-
-            if (GUI){
-                realField.setText("" + realvalue);
-                imgField.setText("" + imvalue);
-            }
-        
-            CalcETA(false, maxsteps, false);
-        }
-    }
-    
-    private void CheckAngles()
-    {
-        if (temppoints.size() < 3)
-        {
-            return;
-        }
-        
-        Vector3f previouspoint = temppoints.get(indexangle - 1).clone();
-        Vector3f actualpoint = temppoints.get(indexangle).clone();
-        Vector3f nextpoint = temppoints.get(indexangle + 1).clone();
-        
-        Vector3f ppreviouspoint = previouspoint.subtract(actualpoint);
-        Vector3f pnextpoint = nextpoint.subtract(actualpoint);
-        
-        ppreviouspoint.normalizeLocal();
-        pnextpoint.normalizeLocal();
-        
-        float angle = ppreviouspoint.angleBetween(pnextpoint);
-        
-        if (FastMath.abs((float) (angle - Math.PI)) < 0.01f && !goingdown)
-        {
-            goingdown = true;
-        }
-        
-        if (prevangle < angle && prevangle < 0.1f && angle < 0.1f && goingdown)
-        {
-            if (!startcounting){
-                time = 0;
-                startcounting = true;
-                goingdown = false;
-                System.out.println("Calc angle distance of point: " + indexangle);
-            }
-            else
-            {
-                if (GUI){
-                    valueList.getModel().add("Angle time:" + Float.toString(time));
-                }
-                else
-                {
-                    System.out.println("Angle time: " + Float.toString(time));
-                }
-                
-                startcounting = false;
-                
-                if (indexangle < temppoints.size() - 1)
-                {
-                    indexangle++;
-                }
-            }
-            
-        }
-        
-        anglevector.setText(Float.toString(angle));
-        prevangle = angle;
-    }
-
     @Override
     public void simpleUpdate(float tpf) {
-        time += tpf;
+        currentTime += tpf;
         
-        if (!pausecalc){
-            steptime += tpf;
-        }
-         
-        if (automove){
-            MoveAuto(tpf, false);
-            CheckAngles(); 
-        }
-        
-        if (stepbystep)
+        if (currentTime > refreshTime && !pause)
         {
-            if (steptime > 1.5f)
-            {
-                steptime = 0;
-                stepcounter++;
-                //System.out.println("Tick step!");
-                
-                if (stepcounter > maxsteps )
-                {
-                    stepcounter = 1;
-                }
-                
-                naturalField.setText("      "+ (stepcounter - 1)+"       ");
-            }
-            MoveAuto(tpf, true);
-            //System.out.println("Tick!");
-        }
-        
-    }
-
-    @Override
-    public void simpleRender(RenderManager rm) {
-    }
-
-    @Override
-    public void onAction(String name, boolean isPressed, float tpf) {
-        if (name.equals("Drag"))
-        {
-            if (isPressed)
-            {
-                HitTest();
-            }
-            else
-            {
-                this.isdragging = false;
-            }
-        }
-        
-        if (name.equals("Pause") && isPressed)
-        {
-            this.pausecalc = !this.pausecalc;
-        }
-        
-        if (name.equals("Enter") && isPressed)
-        {
-            this.stepbystep = !this.stepbystep;
+            initialImaginary += speed;
             
-            if (this.stepbystep)
-            {
-                guiNode.attachChild(myStepWindow);
-                DecimalFormat decimalFormat = new DecimalFormat("#.00");
-                
-                steptime = 0f;
-                stepcounter = 1;
-                
-                naturalField.setText("      "+ (stepcounter - 1)+"       ");
-                exponentialField.setText("         (" + decimalFormat.format(realvalue) + " + i" + decimalFormat.format(imvalue) + ")");
-            }
-            else
-            {
-                guiNode.detachChild(myStepWindow);
-            }
+            CalculateGraph(svaluer, initialImaginary);
+            
+            RefreshHUD();
+            currentTime = 0;
         }
-        
-        if (name.equals("arrowleft") && isPressed)
-        {
-            if (nodeindex > 0)
-            {
-                nodeindex--;
-            }
-        }
-        
-        if (name.equals("arrowright") && isPressed)
-        {
-            nodeindex++;
-        }
-        
-        
-
-    }
-
-    @Override
-    public void onAnalog(String name, float value, float tpf) {
-        if (this.isdragging){
-            if (name.equals("Right") || name.equals("Left") || name.equals("Up") || name.equals("Down"))
-            {
-                MovePoint();
-            }
-        }
-        
-        if (name.equals("arrowup"))
-        {
-            MoveSegment(0);
-        }
-        
-        if (name.equals("arrowdown"))
-        {
-            MoveSegment(1);
-        }
-        
     }
     
-    private void MoveSegment(int direction)
+    private void RefreshHUD()
     {
-        if (direction == 0)
+        hudTextReal.setText("S = " + new Float(svaluer).toString() + " + ");
+        hudTextImg.setText("i" + new Float(initialImaginary).toString());
+
+        hudTextSpeed.setText("Speed: " + new Float(speed).toString());
+        hudTextScaleX.setText("ScaleX: " + new Float(plotscalex).toString());
+        hudTextScaleY.setText("ScaleY: " + new Float(plotscaley).toString());
+    }
+    
+    private void CalculateGraph(float r, float im) {
+        rootNode.detachAllChildren();
+        InitAxis();
+        
+        //Complex svalue = new Complex(0.75, 14.1347251417346937904572519835624702707842571156992431);
+        //Complex svalue = new Complex(0.75, 14040.1347251417346937904572519835624702707842571156992431);
+        Complex svalue = new Complex(r, im);
+        
+        
+        int sign = 1;
+
+        Complex previouspoint = null;
+        Complex previousplotx = new Complex(0,0);
+        Complex previousploty = new Complex(0,0);
+         
+        for (int i = 1; i < 600; i++)
         {
-            etanode.rotate(0, 0, 0.01f);
+            Complex number = new Complex(i, 0);
+            number = number.pow(svalue);
+            
+            Complex divider = new Complex(sign, 0);
+            
+            Complex data = divider.divide(number);
+           
+            if (previouspoint != null)
+            {
+                Complex newplotx = new Complex(new Double(i).doubleValue()/plotscalex,(data.getReal() - previouspoint.getReal())*plotscaley);
+                rootNode.attachChild(GenerateLine((float)previousplotx.getReal(), (float)previousplotx.getImaginary(), (float)newplotx.getReal(), (float)newplotx.getImaginary(), i, 0));
+                previousplotx = newplotx;
+                
+                Complex newploty = new Complex(new Double(i).doubleValue()/plotscalex,(data.getImaginary() - previouspoint.getImaginary())*plotscaley);
+                rootNode.attachChild(GenerateLine((float)previousploty.getReal(), (float)previousploty.getImaginary(), (float)newploty.getReal(), (float)newploty.getImaginary(), i, 1));
+                previousploty = newploty;
+                
+            }
+            previouspoint = data;
+            sign *= -1;
+            
+            if (i % 5 == 0) //y line on each step 5.0
+            {
+                rootNode.attachChild(GenerateLine(new Float(i).floatValue()/plotscalex, 100.0f,new Float(i).floatValue()/plotscalex, -100.0f, i, 2));
+            }
         }
-        else{
-            etanode.rotate(0, 0, -0.01f);
+    }
+    
+    public void registerInput()
+    {
+        inputManager.addMapping("speedup",new KeyTrigger(keyInput.KEY_R));//save image
+        inputManager.addMapping("speeddown",new KeyTrigger(keyInput.KEY_F));//print data into console
+        inputManager.addMapping("scalexup", new KeyTrigger(keyInput.KEY_T));//save lenght of last pivot into file
+        inputManager.addMapping("scalexdown", new KeyTrigger(keyInput.KEY_G));//clean image
+        inputManager.addMapping("scaleyup", new KeyTrigger(keyInput.KEY_Y));//clean image
+        inputManager.addMapping("scaleydown", new KeyTrigger(keyInput.KEY_H));//clean image
+        inputManager.addMapping("pause", new KeyTrigger(keyInput.KEY_SPACE));//pause simulation
+        inputManager.addMapping("saveexample", new KeyTrigger(keyInput.KEY_0));//pause simulation
+        inputManager.addListener(this, "speedup");
+        inputManager.addListener(this, "speeddown");
+        inputManager.addListener(this, "scalexup");
+        inputManager.addListener(this, "scalexdown");
+        inputManager.addListener(this, "scaleyup");
+        inputManager.addListener(this, "scaleydown");
+        inputManager.addListener(this, "pause");
+        inputManager.addListener(this, "saveexample");
+    }
+
+    
+    
+    @Override
+    public void onAction(String name, boolean isPressed, float tpf) {
+        if (name.equals("pause") && isPressed)
+        {
+            pause = !pause;
         }
+        
+         if (name.equals("saveexample") && isPressed)
+        {
+            ETAtoFile();
+        }
+    }
+    
+    @Override
+    public void onAnalog(String name, float value, float tpf) {
+        
+        CalculateGraph(svaluer, initialImaginary);
+        
+        if (name.equals("speedup"))
+        {
+            speed += 0.001f;
+        }
+        
+        if (name.equals("speeddown"))
+        {
+            speed -= 0.001f;
+            
+            if (speed < 0.0f)
+                speed = 0.0f;
+        }
+        
+        if (name.equals("scalexup"))
+        {
+            if (plotscalex > 1.0)
+                plotscalex += 1.0f;
+            else
+                plotscalex += 0.01f;
+        }
+        
+        if (name.equals("scalexdown"))
+        {
+            if (plotscalex > 1.0)
+                plotscalex -= 1.0f;
+            else
+                plotscalex -= 0.01f;
+            
+            if (plotscalex < 0.0f)
+                plotscalex = 0.001f;
+        }
+        
+        if (name.equals("scaleyup"))
+        {
+            plotscaley += 1.0f;
+        }
+        
+        if (name.equals("scaleydown"))
+        {
+            plotscaley -= 1.0f;
+            
+             if (plotscaley < 1.0)
+                plotscaley = 1.00f;
+        }
+        
+        RefreshHUD();
     }
 }
