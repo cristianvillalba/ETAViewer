@@ -82,6 +82,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
     private float realvalue = 0.5f;
     private float imvalue = 0.0f;
     private float imoffset = 0f;
+    private float couplespeed = 0.8f;
     private Geometry point;
     private Node etanode;
     private Node overlayetanode;
@@ -202,6 +203,9 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         
         inputManager.addMapping("writeangles", new KeyTrigger(KeyInput.KEY_0));
         
+        inputManager.addMapping("coupleup", new KeyTrigger(KeyInput.KEY_N));
+        inputManager.addMapping("coupledown", new KeyTrigger(KeyInput.KEY_M));
+        
         inputManager.addListener(this, "Drag");
         inputManager.addListener(this, "Right");
         inputManager.addListener(this, "Left");
@@ -216,6 +220,9 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         inputManager.addListener(this, "arrowright");
         
         inputManager.addListener(this, "writeangles");
+        
+        inputManager.addListener(this, "coupleup");
+        inputManager.addListener(this, "coupledown");
     }
     
     private void InitGUI(){
@@ -446,7 +453,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         float torsionIndexNext = 3.1214256838f * (globalTorsionIndex + 1) + 7.8518771786f;
       
         boolean torsionDetected = false;
-        hudTextInfo.setText("torsionIndex: " + torsionIndex + " torsionNext: " + torsionIndexNext);
+        hudTextInfo.setText("torsionIndex: " + torsionIndex + " torsionNext: " + torsionIndexNext + " couplespeed: " + couplespeed);
         //------------
         
         for (int i = 1; i < limit; i++)
@@ -471,7 +478,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
                 float segmentTorsionScale = (imvalue - torsionIndex )/ (torsionIndexNext - torsionIndex);
                 Complex segmentTorsion = etasumprev.add(segmentdata.multiply(segmentTorsionScale));
                 
-                ConstructTorsion((float)segmentTorsion.getReal(), (float)segmentTorsion.getImaginary());
+                ConstructTorsion((float)segmentTorsion.getReal(), (float)segmentTorsion.getImaginary(), (float)segmentdata.getArgument());
                 
                 if (Math.abs(imvalue - torsionIndexNext) < 0.1 && !torsionDetected)
                 {
@@ -562,7 +569,8 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             System.out.println("iteration: " + iterationanalyze + " real: " + df.format(etasum.getReal() - analyzeorigin.getReal()) + " img: " + df.format(etasum.getImaginary()- analyzeorigin.getImaginary()));
             System.out.println("Angle - - - : " + angle);
             
-            overlayetanode.attachChild(GenerateLine((float)analyzeorigin.getReal(), (float)analyzeorigin.getImaginary(),(float)etasum.getReal(), (float)etasum.getImaginary(),666 ));
+            //remove those red segments - this was for a previous study
+            //overlayetanode.attachChild(GenerateLine((float)analyzeorigin.getReal(), (float)analyzeorigin.getImaginary(),(float)etasum.getReal(), (float)etasum.getImaginary(),666 ));
         }
     }
     
@@ -1006,6 +1014,16 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             MoveSegment(1);
         }
         
+        if (name.equals("coupleup"))
+        {
+            couplespeed += 0.01f;
+        }
+        
+        if (name.equals("coupledown"))
+        {
+            couplespeed -= 0.01f;
+        }
+        
     }
     
     private void MoveSegment(int direction)
@@ -1080,7 +1098,7 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         return FastMath.acos(cos); // en radianes
     }
     
-    private void ConstructTorsion(float r1param, float i1param)
+    private void ConstructTorsion(float r1param, float i1param, float angle)
     {
         float r1 = r1param;
         float i1 = i1param;
@@ -1088,9 +1106,14 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
         //float r2 = r1 + 0.72f * (float)Math.cos(5.0f - 0.05f * (imvalue));
         //float i2 = i1 + 0.72f * (float)Math.sin(5.0f - 0.05f * (imvalue));
         
-        float exponent = FastMath.pow(imvalue, 1.05f);
-        float r2 = r1 + 0.72f * (float)Math.cos(5.0f - 1.39f * (exponent));
-        float i2 = i1 + 0.72f * (float)Math.sin(5.0f - 1.39f * (exponent));
+        //float exponent = FastMath.pow(imvalue, couplespeed);
+        //float r2 = r1 + 0.72f * (float)Math.cos(5.0f - 0.05 * (exponent));
+        //float i2 = i1 + 0.72f * (float)Math.sin(5.0f - 0.05 * (exponent));
+        //exponent = angle;
+        
+        //in this case the angle is taken directly from the ETA function term corresponding to the torsion segment which is analized
+        float r2 = r1 + 0.72f * (float)Math.cos(angle + couplespeed);
+        float i2 = i1 + 0.72f * (float)Math.sin(angle + couplespeed);
         
         
         torsionNode.attachChild(GenerateLine(r1,i1,r2,i2,667));
