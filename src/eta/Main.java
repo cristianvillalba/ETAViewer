@@ -292,6 +292,14 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
                 }
             });
         
+        Button clickMe04 = myMainWindow.addChild(new Button("ETA + Torsion to File..."));
+        clickMe04.addClickCommands(new Command<Button>() {
+                @Override
+                public void execute( Button source ) {
+                    instance.WriteETATorsionToDisk(true, maxsteps);
+                }
+            });
+        
         
         naturalField = new TextField("      2       ");
         exponentialField = new TextField("         (2 + 3i)");
@@ -351,6 +359,98 @@ public class Main extends SimpleApplication implements ActionListener, AnalogLis
             }
             
             
+            if (GUI && focus){
+                GuiGlobals.getInstance().releaseFocus(myMainWindow);
+            }
+        }
+        catch(Exception n)
+        {
+            
+        }
+        
+    }
+    
+    public void WriteETATorsionToDisk(boolean focus, int limit)
+    {
+        try{
+            Complex etasum = new Complex(0f, 0f);
+            Complex one = new Complex(1f, 0f);
+            Complex expon = new Complex(realvalue, imvalue);
+            Complex segmentdata = new Complex(0f, 0f);
+            Complex segmentdataprev = null;
+            Complex analyzeorigin = null;
+            Complex etasumprev = null;
+            Complex anglecalculationV1 = null;
+            boolean writeanalyze = false;
+            float previousreal = 0f;
+            float previousimg = 0f;
+
+            DecimalFormat df = new DecimalFormat();
+            df.setMaximumFractionDigits(5);
+
+
+            String randfilename = "etaTorsion-" + FastMath.rand.nextInt() + ".csv";
+            
+            this.CreateFile(randfilename);
+            
+            this.WriteToFile(randfilename, "Value for\nReal: " + realvalue + ", Imaginary: " + imvalue + "\n");
+
+            //------------
+            int localtorsionindex = 0;
+            float torsionIndex = 3.1214256838f * localtorsionindex + 7.8518771786f;
+            float torsionIndexNext = 3.1214256838f * (localtorsionindex + 1) + 7.8518771786f;
+
+            boolean torsionDetected = false;
+            //------------
+
+            for (int i = 1; i < limit; i++)
+            {
+                Complex divisor = new Complex(i, 0f);
+
+                segmentdata = one.divide(divisor.pow(expon));//save segment data to visualize
+
+                etasumprev = etasum; //store previous eta value
+
+                if ( i % 2 == 1){
+                    etasum = etasum.add(one.divide(divisor.pow(expon)));
+                }
+                else
+                {
+                    etasum = etasum.subtract(one.divide(divisor.pow(expon)));
+                    segmentdata = segmentdata.multiply(-1.0f);//correct sign of individual term
+                }
+
+                if (imvalue > torsionIndex && imvalue < torsionIndexNext  && (localtorsionindex + 3) == i )
+                {
+                    float segmentTorsionScale = (imvalue - torsionIndex )/ (torsionIndexNext - torsionIndex);
+                    Complex segmentTorsion = etasumprev.add(segmentdata.multiply(segmentTorsionScale));
+
+                    //Construct Torsion
+                    float rtorsion1 = (float)segmentTorsion.getReal();
+                    float itorsion1 = (float)segmentTorsion.getImaginary();
+
+                    float rtorsion2 = rtorsion1 + 0.72f * (float)Math.cos((float)segmentdata.getArgument() + couplespeed);
+                    float itorsion2 = itorsion1 + 0.72f * (float)Math.sin((float)segmentdata.getArgument() + couplespeed);
+
+                    if (Math.abs(imvalue - torsionIndexNext) < 0.1 && !torsionDetected)
+                    {
+                        localtorsionindex = localtorsionindex + 1;
+                        torsionDetected = true; //prevent index to blow
+                    }
+                    
+                    this.WriteToFile(randfilename, "Torsion\n" + rtorsion1 + ", " + itorsion1 + ", " + rtorsion2 + ", " + itorsion2 + "\n");
+
+                }
+
+                this.WriteToFile(randfilename, i + ", " + segmentdata.getReal() + ", " + segmentdata.getImaginary() + ", " + etasum.getReal() + ", " + etasum.getImaginary() + "\n");
+                
+                previousreal =  (float)etasum.getReal();
+                previousimg = (float)etasum.getImaginary();
+
+
+                segmentdataprev = segmentdata;
+            }
+ 
             if (GUI && focus){
                 GuiGlobals.getInstance().releaseFocus(myMainWindow);
             }
